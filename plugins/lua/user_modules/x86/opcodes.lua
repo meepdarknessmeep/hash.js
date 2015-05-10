@@ -707,3 +707,28 @@ AddOpcode("sidt", "\x0F\x01", 1, function(inst, op, args)
 	inst.regs.idtr = addr;
 end, 1);
 
+
+--[[----------------
+    bitwise 8ops
+----------------]]--
+
+AddOpcode("shl", "\xC0", 2, function(inst, op, args)
+	local which = inst:reg1(args[1]);
+	inst:mov8(which, inst:get8(which) << inst:uint8(args[2]));
+end, 4);
+AddOpcode("shr", "\xC0", 2, function(inst, op, args)
+	local which = inst:reg1(args[1]);
+	inst:mov8(which, inst:get8(which) << inst:uint8(args[2]));
+end, 5);
+AddOpcode("shl", "\xC0", 2, function(inst, op, args)
+	local which = inst:reg1(args[1]);
+	inst:mov8(which, inst:get8(which) << inst:uint8(args[2]));
+end, 6);
+AddOpcode("sar", "\xC0", 2, function(inst, op, args)
+	local which = inst:reg1(args[1]);
+	local val = inst:get8(which);
+	local signed = val & 128;
+	
+	inst:mov8(which, ((val & ~128) >> inst:uint8(args[2])) | signed);
+end, 7);
+
