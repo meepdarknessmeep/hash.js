@@ -1,4 +1,7 @@
 require "sed"
-require "tablerandom"
+require "gmod_defines"
+require "messagestats"
+require "fn"
+require "vectors"
 
 hook.StopPersist()

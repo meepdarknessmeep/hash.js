@@ -1,11 +1,11 @@
-local ENV = {}
-
 --
 -- Returns a copy of a table with all current members read-only
 -- If target is defined, the returned result will be equal to target
 --
-local function ProtectTable( tab, target )
+local function ProtectTable( tab, target, fakefunction )
 
+	fakefunction = fakefunction or {}
+	
 	local index = {}
 	local ret = target or {}
 
@@ -32,8 +32,16 @@ local function ProtectTable( tab, target )
 	end
 
 	local meta			= {}
-	meta.__index		= index
 	meta.__metatable	= false
+	function meta:__index( k )
+		
+		if ( fakefunction[ k ] ) then 
+			return rawget( index, k )(self)
+		end
+		
+		return rawget( index, k )
+		
+	end
 
 	function meta:__newindex( k, v )
 
@@ -57,8 +65,8 @@ local function ProtectTable( tab, target )
 			t[ k ] = v
 		end
 
-		for k, v in pairs( meta.__index ) do
-			t[ k ] = v
+		for k, v in pairs( index ) do
+			t[ k ] = self[ k ] -- you have to reindex it since of metatable indexing
 		end
 
 		return next, t, nil
@@ -69,6 +77,21 @@ local function ProtectTable( tab, target )
 
 end
 
+cookie = require "./sand_modules/cookie"
+
+local sbox_steamid
+
+function SetSandboxedSteamID( steamid )
+
+	sbox_steamid = steamid
+	
+end
+
+function GetSandboxedSteamID()
+
+	return sbox_steamid
+	
+end
 
 local INDEX = {
 	_G					= ENV,
@@ -100,12 +123,13 @@ local INDEX = {
 	--
 	-- 3rd party libraries
 	--
-	cookie				= require "./sand_modules/cookie",
+	cookie				= cookie,
 	hook				= require "./sand_modules/hook",
 	include				= require "./sand_modules/include",
 	require				= require "./sand_modules/require",
 	timer				= require "./sand_modules/timer",
-
+	SteamID             = function(self) return sbox_steamid end,
+	
 	--
 	-- Modified default libraries
 	--
@@ -125,4 +149,6 @@ function INDEX.load( chunk, chunkname, _, fenv )
 
 end
 
-return ProtectTable( INDEX, ENV )
+return ProtectTable( INDEX, ENV, {
+	SteamID = true -- SteamID is a function but needs to remain backwards compat
+})

@@ -1,26 +1,34 @@
 var child_process	= require( "child_process" );
 var request			= require( "request" );
-var EOF				= "\n\x1A";
+var EOF				= "\x00";
 var http			= require( "http" );
 var lua				= null;
 var cmdbuf			= null;
 var processing		= null;
 
 function Init() {
-	lua = child_process.spawn( "lua.exe", [ "init.lua" ], {
+	lua = child_process.spawn( "lua", [ "init.lua" ], {
 		cwd: __dirname + "/lua"
 	} );
 
-	cmdbuf = [ "> require 'autorun'" ];
+	cmdbuf = [ "US!] require 'autorun'" ];
 	processing = false;
 
 	lua.stdout.on( "data", OnStdOut );
+	lua.stderr.on( "data", function( data ) {
+		console.log("[Lua STDERR] " + data);
+	} );
 }
 
 
-function QueueCommand( cmd ) {
+function QueueCommand( cmd, nolimits, custom ) {
 
-	cmdbuf.push( cmd );
+	if(custom)
+		cmdbuf.push( custom + cmd ); // custom (sandboxed)
+	else if(nolimits)
+		cmdbuf.push( "JS!" + cmd ); // javascript - code (not sandboxed)
+	else
+		cmdbuf.push( "NS!" + cmd ); // no script (sandboxed)
 
 }
 
@@ -30,14 +38,12 @@ function ProcessCommand() {
 		return;
 
 	var cmd = cmdbuf.shift();
-
 	if ( !cmd )
 		return;
 
 	processing = true;
 
-	lua.stdin.write( cmd );
-	lua.stdin.write( EOF );
+	lua.stdin.write( cmd + EOF + "\n" );
 
 }
 
@@ -68,7 +74,7 @@ function LuaQuote( str ) {
 
 function QueueHook( event, args ) {
 
-	var buf = [ "> hook.Call(", LuaQuote( event ) ];
+	var buf = [ "] hook.Call(", LuaQuote( event ) ];
 
 	if ( args && args.length > 0 ) {
 
@@ -84,13 +90,13 @@ function QueueHook( event, args ) {
 
 	buf.push( ")" );
 
-	QueueCommand( buf.join( "" ) );
+	QueueCommand( buf.join( "" ), false );
 
 }
 
 function Require( path ) {
 
-	QueueCommand( "> require(" + LuaQuote( path ) + ")" );
+	QueueCommand( "] require(" + LuaQuote( path ) + ")", false );
 
 }
 
@@ -98,13 +104,13 @@ setInterval( function() {
 
 	QueueHook( "Tick" );
 
-	QueueCommand( "> timer.Tick()" );
+	QueueCommand( "] timer.Tick()", false );
 
-}, 1000 );
+}, 500 );
 
 setInterval( function() {
 
-	QueueCommand( "> cookie.Save()" );
+	QueueCommand( "] cookie.Save()", true );
 
 }, 30000 );
 
@@ -116,11 +122,11 @@ bot.on( "Message", function( name, steamID, msg, group ) {
 	if ( steamID == group )
 		return; // Don't allow Lua to be ran outside of the group chat
 
-	QueueCommand( "SteamID = " + steamID );
+	QueueCommand( "SetSandboxedSteamID( " + steamID + " )", true );
 
 	QueueHook( "Message", [ name, steamID, msg ] );
 
-	QueueCommand( msg.replace( EOF, "\\n\\x1A" ) );
+	QueueCommand( msg.replace( EOF, "\\x00" ), false, "US!" );
 
 } );
 
@@ -138,7 +144,6 @@ function OnStdOut( data ) {
 	//
 	// Handle multiple packets in a single chunk, or less
 	//
-
 	data = data.toString();
 
 	var datas = data.split( EOF );
@@ -173,6 +178,6 @@ bot.registerCommand( "restart", function() {
 	lua.kill();
 	Init();
 
-} );
+}, "Restarts the Lua engine." );
 
 Init();
