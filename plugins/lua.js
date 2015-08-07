@@ -39,7 +39,6 @@ function QueueCommand( cmd, sandbox, showerror, steamid, groupid ) {
 			// TODO?: Check for collisions and re-crc the command?
 		}
 
-		console.log("SENT: " + cmdcrc);
 		cmdbuf.push( {
 			command:       cmd,
 			crc:           cmdcrc    || 0,
@@ -86,7 +85,6 @@ function ParsePacket( data ) {
 		if(packet.type == "Lua") 
 		{
 			packet.crc   = Number(parsed[2]);
-			console.log("RECEIVED: " + packet.crc);
 			packet.islua = parsed[3] == "1" ? true : false;
 			packet.data  = parsed[4];
 		}
